@@ -15,7 +15,7 @@ from colbert.indexing.collection_indexer import encode
 class Indexer:
     def __init__(self, checkpoint, config=None, verbose: int = 3):
         """
-           Use Run().context() to choose the run's configuration. They are NOT extracted from `config`.
+        Use Run().context() to choose the run's configuration. They are NOT extracted from `config`.
         """
 
         self.index_path = None
@@ -23,7 +23,9 @@ class Indexer:
         self.checkpoint = checkpoint
         self.checkpoint_config = ColBERTConfig.load_from_checkpoint(checkpoint)
 
-        self.config = ColBERTConfig.from_existing(self.checkpoint_config, config, Run().config)
+        self.config = ColBERTConfig.from_existing(
+            self.checkpoint_config, config, Run().config
+        )
         self.configure(checkpoint=checkpoint)
 
     def configure(self, **kw_args):
@@ -41,15 +43,19 @@ class Indexer:
             filename = os.path.join(directory, filename)
 
             delete = filename.endswith(".json")
-            delete = delete and ('metadata' in filename or 'doclen' in filename or 'plan' in filename)
+            delete = delete and (
+                "metadata" in filename or "doclen" in filename or "plan" in filename
+            )
             delete = delete or filename.endswith(".pt")
-            
+
             if delete:
                 deleted.append(filename)
-        
+
         if len(deleted):
             if not force_silent:
-                print_message(f"#> Will delete {len(deleted)} files already at {directory} in 20 seconds...")
+                print_message(
+                    f"#> Will delete {len(deleted)} files already at {directory} in 20 seconds..."
+                )
                 time.sleep(20)
 
             for filename in deleted:
@@ -58,32 +64,48 @@ class Indexer:
         return deleted
 
     def index(self, name, collection, overwrite=False):
-        assert overwrite in [True, False, 'reuse', 'resume', "force_silent_overwrite"]
+        assert overwrite in [True, False, "reuse", "resume", "force_silent_overwrite"]
 
-        self.configure(collection=collection, index_name=name, resume=overwrite=='resume')
+        self.configure(
+            collection=collection, index_name=name, resume=overwrite == "resume"
+        )
         self.configure(bsize=64, partitions=None)
 
         self.index_path = self.config.index_path_
-        index_does_not_exist = (not os.path.exists(self.config.index_path_))
+        index_does_not_exist = not os.path.exists(self.config.index_path_)
 
-        assert (overwrite in [True, 'reuse', 'resume', "force_silent_overwrite"]) or index_does_not_exist, self.config.index_path_
+        assert (
+            overwrite in [True, "reuse", "resume", "force_silent_overwrite"]
+        ) or index_does_not_exist, self.config.index_path_
         create_directory(self.config.index_path_)
 
-        if overwrite == 'force_silent_overwrite':
+        if overwrite == "force_silent_overwrite":
             self.erase(force_silent=True)
         elif overwrite is True:
             self.erase()
 
-        if index_does_not_exist or overwrite != 'reuse':
+        if index_does_not_exist or overwrite != "reuse":
             self.__launch(collection)
 
         return self.index_path
 
     def __launch(self, collection):
-        manager = mp.Manager()
-        shared_lists = [manager.list() for _ in range(self.config.nranks)]
-        shared_queues = [manager.Queue(maxsize=1) for _ in range(self.config.nranks)]
+        if self.config.nranks > 1:
+            print("Using more than 1 GPUs via torch multiprocessing...")
+            print("This may hang forever in certain environments.")
+            print(
+                "Pass num_gpus=1 (RAGatouille) or config nranks to 1 (colbert-ai) to force single-GPU mode if it does."  # noqa
+            )
+            manager = mp.Manager()
+            shared_lists = [manager.list() for _ in range(self.config.nranks)]
+            shared_queues = [
+                manager.Queue(maxsize=1) for _ in range(self.config.nranks)
+            ]
 
-        # Encodes collection into index using the CollectionIndexer class
-        launcher = Launcher(encode)
-        launcher.launch(self.config, collection, shared_lists, shared_queues, self.verbose)
+            # Encodes collection into index using the CollectionIndexer class
+            launcher = Launcher(encode)
+            launcher.launch(
+                self.config, collection, shared_lists, shared_queues, self.verbose
+            )
+        else:
+            encode(self.config, collection, verbose=self.verbose)
