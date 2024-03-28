@@ -1,11 +1,35 @@
 import torch
 
 
-def tensorize_triples(query_tokenizer, doc_tokenizer, queries, passages, scores, bsize, nway):
+def tensorize_triples(
+    query_tokenizer,
+    doc_tokenizer,
+    queries,
+    passages,
+    scores,
+    bsize,
+    nway,
+    has_instructions,
+    instruction_token,
+):
     # assert len(passages) == len(scores) == bsize * nway
     # assert bsize is None or len(queries) % bsize == 0
 
     # N = len(queries)
+    _tmp_q, instructions = []
+    if has_instructions:
+        for query in queries:
+            if instruction_token not in query:
+                raise ValueError(
+                    f"Instruction token '{instruction_token}' not found in query: {query}"
+                )
+            instruction, query = query.split(instruction_token, 1)
+            instructions.append(instruction)
+            _tmp_q.append(query)
+    queries = _tmp_q
+    del _tmp_q
+
+    I_ids, I_mask = instructions_tokenizer.tensorize(instructions)
     Q_ids, Q_mask = query_tokenizer.tensorize(queries)
     D_ids, D_mask = doc_tokenizer.tensorize(passages)
     # D_ids, D_mask = D_ids.view(2, N, -1), D_mask.view(2, N, -1)
@@ -47,10 +71,22 @@ def _sort_by_length(ids, mask, bsize):
     return ids[indices], mask[indices], reverse_indices
 
 
-def _split_into_batches(ids, mask, bsize):
+def _split_into_batches(ids, mask, bsize, instructions=None):
     batches = []
-    for offset in range(0, ids.size(0), bsize):
-        batches.append((ids[offset:offset+bsize], mask[offset:offset+bsize]))
+    if not instructions:
+        for offset in range(0, ids.size(0), bsize):
+            batches.append(
+                (ids[offset : offset + bsize], mask[offset : offset + bsize])
+            )
+    else:
+        for offset in range(0, ids.size(0), bsize):
+            batches.append(
+                (
+                    ids[offset : offset + bsize],
+                    mask[offset : offset + bsize],
+                    instructions[offset : offset + bsize],
+                )
+            )
 
     return batches
 
@@ -58,6 +94,6 @@ def _split_into_batches(ids, mask, bsize):
 def _split_into_batches2(scores, bsize):
     batches = []
     for offset in range(0, len(scores), bsize):
-        batches.append(scores[offset:offset+bsize])
+        batches.append(scores[offset : offset + bsize])
 
     return batches
