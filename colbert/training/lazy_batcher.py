@@ -33,7 +33,7 @@ class LazyBatcher:
         self.bsize, self.accumsteps = config.bsize, config.accumsteps
         self.nway = config.nway
 
-        self.query_tokenizer = QueryTokenizer(config, instruction_model = "Qwen/Qwen1.5-1.8B-Chat" if has_instructions else None)
+        self.query_tokenizer = QueryTokenizer(config, instruction_model = "google/gemma-2b-it" if has_instructions else None)
         self.doc_tokenizer = DocTokenizer(config)
         self.tensorize_triples = partial(
             tensorize_triples, self.query_tokenizer, self.doc_tokenizer

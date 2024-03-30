@@ -5,7 +5,7 @@ if __name__=='__main__':
     with Run().context(RunConfig(nranks=2, experiment="test")):
 
         config = ColBERTConfig(
-            bsize=32,
+            bsize=8,
             nway=4,
             use_ib_negatives=True,
             lr=1e-4,
@@ -17,7 +17,7 @@ if __name__=='__main__':
             queries="queries.train.colbert.tsv",
             collection="corpus.train.colbert.tsv",
             config=config,
-            instruction_model="Qwen/Qwen1.5-1.8B-Chat",
+            instruction_model="google/gemma-2b-it",
         )
 
         checkpoint_path = trainer.train('colbert-ir/colbertv2.0')

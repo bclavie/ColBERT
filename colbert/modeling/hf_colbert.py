@@ -194,7 +194,7 @@ def class_factory(name_or_path, **colbert_kwargs):
                     #     instruction_model
                     # )
                     # self.instruction_dropout = nn.Dropout(0.1)
-                    self.instruction_encoder = AutoModel.from_pretrained("Qwen/Qwen1.5-1.8B-Chat")
+                    self.instruction_encoder = AutoModel.from_pretrained("google/gemma-2b-it")
                     self.cross_attention = CrossAttention(
                         config.hidden_size, self.instruction_encoder.config.hidden_size
                     )
@@ -295,7 +295,7 @@ def class_factory(name_or_path, **colbert_kwargs):
         @staticmethod
         def instruction_tokenizer_from_pretrained(name_or_path):
             # obj = EncT5Tokenizer.from_pretrained(name_or_path)
-            obj = AutoTokenizer.from_pretrained("Qwen/Qwen1.5-1.8B-Chat")
+            obj = AutoTokenizer.from_pretrained("google/gemma-2b-it")
             obj.base = name_or_path
 
             return obj

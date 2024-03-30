@@ -28,7 +28,7 @@ import torch
 from transformers import PreTrainedModel, AutoConfig, AutoModelForSeq2SeqLM, AutoTokenizer, T5Model
 
 
-tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen1.5-1.8B-Chat")
+tokenizer = AutoTokenizer.from_pretrained("google/gemma-2b-it")
 
 
 def last_token_pool(last_hidden_states: torch.Tensor,
@@ -43,7 +43,7 @@ def last_token_pool(last_hidden_states: torch.Tensor,
 
 
 # print("Loading")
-# encoder = AutoModel.from_pretrained("Qwen/Qwen1.5-1.8B-Chat").to('cuda')
+# encoder = AutoModel.from_pretrained("google/gemma-2b-it").to('cuda')
 # tokenizer = AutoTokenizer.from_pretrained('google/flan-t5-xl')
 # print("loaded")
 

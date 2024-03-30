@@ -50,7 +50,7 @@ class BaseColBERT(torch.nn.Module):
             self.model, "instruction_encoder"
         ):
             self.instruction_tokenizer = AutoTokenizer.from_pretrained(
-                "Qwen/Qwen1.5-1.8B-Chat"
+                "google/gemma-2b-it"
             )
 
         self.eval()

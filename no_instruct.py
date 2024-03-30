@@ -18,7 +18,7 @@ if __name__=='__main__':
             collection="corpus.train.colbert.tsv",
             config=config,
             instruction_model=None,
-            # instruction_model="Qwen/Qwen1.5-1.8B-Chat",
+            # instruction_model="google/gemma-2b-it",
         )
 
         checkpoint_path = trainer.train('colbert-ir/colbertv2.0')
