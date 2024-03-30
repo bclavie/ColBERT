@@ -16,6 +16,7 @@ from transformers import DebertaV2Model, DebertaV2PreTrainedModel
 from transformers.dynamic_module_utils import get_class_from_dynamic_module
 from colbert.utils.utils import torch_load_dnn
 
+import torch
 # EncT5
 from colbert.modeling.enct5 import EncT5Model, EncT5Tokenizer
 
@@ -55,18 +56,65 @@ model_object_mapping = {
 transformers_module = dir(transformers)
 
 
+import torch
+import torch.nn.functional as F
+
+from torch import Tensor
+from transformers import AutoTokenizer, AutoModel
+
+
+def last_token_pool(last_hidden_states: Tensor,
+                 attention_mask: Tensor) -> Tensor:
+    left_padding = (attention_mask[:, -1].sum() == attention_mask.shape[0])
+    if left_padding:
+        return last_hidden_states[:, -1]
+    else:
+        sequence_lengths = attention_mask.sum(dim=1) - 1
+        batch_size = last_hidden_states.shape[0]
+        return last_hidden_states[torch.arange(batch_size, device=last_hidden_states.device), sequence_lengths]
+
+
+def get_detailed_instruct(task_description: str, query: str) -> str:
+    return f'Instruct: {task_description}\nQuery: {query}'
+
+
+
 class CrossAttention(nn.Module):
     def __init__(self, query_dim, instruction_dim):
         super(CrossAttention, self).__init__()
-        self.instruction_projection = nn.Linear(instruction_dim, query_dim)
-        self.attention = nn.MultiheadAttention(query_dim, num_heads=1)
+        self.dims_match = True
+        if instruction_dim != query_dim:
+            self.dims_match = False
+            self.instruction_projection = nn.Linear(instruction_dim, query_dim)
+        self.attention = nn.MultiheadAttention(query_dim, num_heads=2)
 
     def forward(self, query_tokens, instruction_embedding):
-        projected_instruction = self.instruction_projection(instruction_embedding)
-        projected_instruction = projected_instruction.unsqueeze(0)
+        if not self.dims_match:
+            instruction_embedding = self.instruction_projection(instruction_embedding)
+        
+        # Adjusting for different sequence lengths
+        batch_size, seq_len, _ = query_tokens.size()
+
+        print('INSTR EMB')
+        instruction_embedding.size()
+        _, instr_seq_len, _ = instruction_embedding.size()
+        
+        if seq_len != instr_seq_len:
+            # Pad query_tokens to match instruction_embedding's seq_len
+            if seq_len < instr_seq_len:
+                padding = query_tokens.new_zeros(batch_size, instr_seq_len - seq_len, query_tokens.size(2))
+                query_tokens = torch.cat([query_tokens, padding], dim=1)
+        
+        # print(query_tokens)
+        # print('BEFORE/AFTER')
         fused_query_representation, _ = self.attention(
-            query=query_tokens, key=projected_instruction, value=projected_instruction
+            query=query_tokens, key=instruction_embedding, value=instruction_embedding
         )
+        
+        # Truncate back to original seq_len (32)
+        fused_query_representation = fused_query_representation[:, :32, :]
+        
+        # print(fused_query_representation)
         return fused_query_representation
 
 
@@ -139,12 +187,14 @@ def class_factory(name_or_path, **colbert_kwargs):
             self.linear = nn.Linear(config.hidden_size, colbert_config.dim, bias=False)
             setattr(self, self.base_model_prefix, model_class_object(config))
 
+            print(instruction_model)
             if instruction_model is not None:
                 if not hasattr(self, "instruction_encoder"):
-                    self.instruction_encoder = EncT5Model.from_pretrained(
-                        instruction_model
-                    )
-                    self.instruction_dropout = nn.Dropout(0.1)
+                    # self.instruction_encoder = EncT5Model.from_pretrained(
+                    #     instruction_model
+                    # )
+                    # self.instruction_dropout = nn.Dropout(0.1)
+                    self.instruction_encoder = AutoModel.from_pretrained("Qwen/Qwen1.5-1.8B-Chat")
                     self.cross_attention = CrossAttention(
                         config.hidden_size, self.instruction_encoder.config.hidden_size
                     )
@@ -211,6 +261,7 @@ def class_factory(name_or_path, **colbert_kwargs):
                 name_or_path,
                 colbert_config=colbert_config,
                 freeze_existing_layers=freeze_existing_layers,
+                instruction_model=instruction_model,
             )
             obj.base = name_or_path
 
@@ -243,7 +294,8 @@ def class_factory(name_or_path, **colbert_kwargs):
 
         @staticmethod
         def instruction_tokenizer_from_pretrained(name_or_path):
-            obj = EncT5Tokenizer.from_pretrained(name_or_path)
+            # obj = EncT5Tokenizer.from_pretrained(name_or_path)
+            obj = AutoTokenizer.from_pretrained("Qwen/Qwen1.5-1.8B-Chat")
             obj.base = name_or_path
 
             return obj

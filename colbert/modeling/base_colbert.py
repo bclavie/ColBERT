@@ -9,7 +9,7 @@ from colbert.modeling.hf_colbert import class_factory
 from colbert.infra.config import ColBERTConfig
 from colbert.parameters import DEVICE
 
-from colbert.modeling.enct5 import EncT5Tokenizer
+# from colbert.modeling.enct5 import EncT5Tokenizer
 
 
 class BaseColBERT(torch.nn.Module):
@@ -45,11 +45,12 @@ class BaseColBERT(torch.nn.Module):
         )
         self.model.to(DEVICE)
         self.raw_tokenizer = AutoTokenizer.from_pretrained(name_or_path)
+        print(colbert_kwargs)
         if "instruction_model" in colbert_kwargs or hasattr(
             self.model, "instruction_encoder"
         ):
-            self.instruction_tokenizer = EncT5Tokenizer.from_pretrained(
-                "facebook/tart-full-flan-t5-xl"
+            self.instruction_tokenizer = AutoTokenizer.from_pretrained(
+                "Qwen/Qwen1.5-1.8B-Chat"
             )
 
         self.eval()

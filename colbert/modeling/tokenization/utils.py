@@ -10,27 +10,30 @@ def tensorize_triples(
     bsize,
     nway,
     has_instructions,
-    instruction_token,
-):
+    instruction_token,):
     # assert len(passages) == len(scores) == bsize * nway
     # assert bsize is None or len(queries) % bsize == 0
 
     # N = len(queries)
-    _tmp_q, instructions = []
-    if has_instructions:
-        for query in queries:
-            if instruction_token not in query:
-                raise ValueError(
-                    f"Instruction token '{instruction_token}' not found in query: {query}"
-                )
-            instruction, query = query.split(instruction_token, 1)
-            instructions.append(instruction)
-            _tmp_q.append(query)
-    queries = _tmp_q
-    del _tmp_q
+    _tmp_q, instructions = [], []
+    # if has_instructions:
+    #     for query in queries:
+    #         if instruction_token not in query:
+    #             raise ValueError(
+    #                 f"Instruction token '{instruction_token}' not found in query: {query}"
+    #             )
+    #         instruction, query = query.split(instruction_token, 1)
+    #         instructions.append(instruction)
+    #         _tmp_q.append(query)
+    # queries = _tmp_q
+    # del _tmp_q
 
-    I_ids, I_mask = instructions_tokenizer.tensorize(instructions)
-    Q_ids, Q_mask = query_tokenizer.tensorize(queries)
+    instructions_encodings = None
+    print(has_instructions)
+    if has_instructions:
+        Q_ids, Q_mask, instruction_ids, instruction_masks = query_tokenizer.tensorize(queries, has_instructions=True)
+    else:
+        Q_ids, Q_mask = query_tokenizer.tensorize(queries)
     D_ids, D_mask = doc_tokenizer.tensorize(passages)
     # D_ids, D_mask = D_ids.view(2, N, -1), D_mask.view(2, N, -1)
 
@@ -44,7 +47,10 @@ def tensorize_triples(
 
     # (positive_ids, negative_ids), (positive_mask, negative_mask) = D_ids, D_mask
 
-    query_batches = _split_into_batches(Q_ids, Q_mask, bsize)
+    if has_instructions:
+        query_batches = _split_into_batches(Q_ids, Q_mask, bsize, instruction_ids, instruction_masks)
+    else:
+        query_batches = _split_into_batches(Q_ids, Q_mask, bsize)
     doc_batches = _split_into_batches(D_ids, D_mask, bsize * nway)
     # positive_batches = _split_into_batches(positive_ids, positive_mask, bsize)
     # negative_batches = _split_into_batches(negative_ids, negative_mask, bsize)
@@ -71,9 +77,9 @@ def _sort_by_length(ids, mask, bsize):
     return ids[indices], mask[indices], reverse_indices
 
 
-def _split_into_batches(ids, mask, bsize, instructions=None):
+def _split_into_batches(ids, mask, bsize, instructions_ids=None, instructions_mask=None):
     batches = []
-    if not instructions:
+    if instructions_ids is None:
         for offset in range(0, ids.size(0), bsize):
             batches.append(
                 (ids[offset : offset + bsize], mask[offset : offset + bsize])
@@ -84,7 +90,8 @@ def _split_into_batches(ids, mask, bsize, instructions=None):
                 (
                     ids[offset : offset + bsize],
                     mask[offset : offset + bsize],
-                    instructions[offset : offset + bsize],
+                    instructions_ids[offset : offset + bsize],
+                    instructions_mask[offset : offset + bsize],
                 )
             )
 

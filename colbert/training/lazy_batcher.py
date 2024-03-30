@@ -28,12 +28,12 @@ class LazyBatcher:
         rank=0,
         nranks=1,
         has_instructions: bool = False,
-        insructions_separator: str = "[/INSTR]",
+        instructions_separator: str = "[__ENDINSTR__]",
     ):
         self.bsize, self.accumsteps = config.bsize, config.accumsteps
         self.nway = config.nway
 
-        self.query_tokenizer = QueryTokenizer(config)
+        self.query_tokenizer = QueryTokenizer(config, instruction_model = "Qwen/Qwen1.5-1.8B-Chat" if has_instructions else None)
         self.doc_tokenizer = DocTokenizer(config)
         self.tensorize_triples = partial(
             tensorize_triples, self.query_tokenizer, self.doc_tokenizer
@@ -43,6 +43,9 @@ class LazyBatcher:
         self.triples = Examples.cast(triples, nway=self.nway).tolist(rank, nranks)
         self.queries = Queries.cast(queries)
         self.collection = Collection.cast(collection)
+
+        self.instructions_separator = instructions_separator
+        self.has_instructions = has_instructions
 
     def __iter__(self):
         return self
@@ -86,9 +89,11 @@ class LazyBatcher:
     def collate(self, queries, passages, scores):
         assert len(queries) == self.bsize
         assert len(passages) == self.nway * self.bsize
+        # print('QUERIES AT COLLATE TIME')
+        # print(queries)
 
         return self.tensorize_triples(
-            queries, passages, scores, self.bsize // self.accumsteps, self.nway
+            queries, passages, scores, self.bsize // self.accumsteps, self.nway, has_instructions=self.has_instructions, instruction_token=self.instructions_separator
         )
 
     # def skip_to_batch(self, batch_idx, intended_batch_size):

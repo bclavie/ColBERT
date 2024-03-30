@@ -79,6 +79,9 @@ class QueryTokenizer:
 
         return ids
 
+    def get_detailed_instruct(self, task_description: str, query: str) -> str:
+        return f'Instructions: {task_description}\nQuery: {query}'
+
     def tensorize(
         self,
         batch_text,
@@ -91,13 +94,22 @@ class QueryTokenizer:
         assert type(batch_text) in [list, tuple], type(batch_text)
 
         instructions_batch_text = []
+        # print('BATCH TEXT')
+        # print(batch_text)
+        # print(batch_text)
         if has_instructions:
             for i, text in enumerate(batch_text):
                 before, after = text.split(instructions_separator)
+                if '[SEP]' in before:
+                    before = self.get_detailed_instruct(before.split('[SEP]')[0], before.split('[SEP]')[1])
                 batch_text[i] = after.lstrip()
                 instructions_batch_text.append(before.rstrip())
 
-        assert len(batch_text) == len(instructions_batch_text)
+        # print(len(batch_text))
+        # print(batch_text)
+        # print(instructions_batch_text)
+        # print(len(instructions_batch_text))
+        # assert len(batch_text) == len(instructions_batch_text)
 
         # add placehold for the [Q] marker
         batch_text = [". " + x for x in batch_text]
@@ -159,17 +171,36 @@ class QueryTokenizer:
             assert mask.sum().item() == mask.size(0) * mask.size(1), mask
 
         if has_instructions:
-            instruction_encodings = self.instruction_tokenizer(
-                instructions_batch_text,
-                padding=True,
-                truncation=True,
-                return_tensors="pt",
-                max_length=self.background_maxlen,
-            ).to(DEVICE)
+            # print(instructions_batch_text)  
+            # print(type(self.instruction_tokenizer))
+            # print(instructions_batch_text)
+
+            # NO QWEN
+            # instruction_encodings = self.instruction_tokenizer(
+            #     instructions_batch_text,
+            #     padding=True,
+            #     truncation=True,
+            #     return_tensors="pt",
+            #     max_length=512,
+            # ).to(DEVICE)
+
+            # QWEN
+            batch_dict = self.instruction_tokenizer(instructions_batch_text, max_length=510, return_attention_mask=False, padding=False, truncation=True)
+            # append eos_token_id to every input_ids
+            # Original line: batch_dict['input_ids'] = [input_ids + [self.instruction_tokenizer.eos_token_id] for input_ids in batch_dict['input_ids']]
+            repeat_indices = [len(input_ids) for input_ids in batch_dict['input_ids']]
+            batch_dict['input_ids'] = [input_ids + [self.instruction_tokenizer.eos_token_id] + input_ids + [self.instruction_tokenizer.eos_token_id] for input_ids in batch_dict['input_ids']]
+            batch_dict = self.instruction_tokenizer.pad(batch_dict, padding=True, return_attention_mask=True, return_tensors='pt')
+            instruction_ids = batch_dict['input_ids']
+            # instruction_ids = instruction_encodings['input_ids']
+            # print('instruction ids earlier')
+            # print(instruction_ids)
+            instruction_masks =  batch_dict['attention_mask']
+            # instruction_masks = instruction_encodings['attention_mask']
 
         if bsize:
             if has_instructions:
-                batches = _split_into_batches(ids, mask, bsize, instruction_encodings)
+                batches = _split_into_batches(ids, mask, bsize, instruction_ids, instruction_masks)
             else:
                 batches = _split_into_batches(ids, mask, bsize)
             return batches
@@ -189,7 +220,11 @@ class QueryTokenizer:
                 print()
 
         if has_instructions:
-            return ids, mask, instruction_encodings
+            # print('query ids')
+            # print(ids)
+            # print('instruction ids')
+            # print(instruction_ids)
+            return ids, mask, instruction_ids, instruction_masks
         return ids, mask
 
     # Ensure that query_maxlen <= length <= 500 tokens

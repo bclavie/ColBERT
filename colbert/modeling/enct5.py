@@ -16,6 +16,118 @@ from torch import nn
 from transformers.models.t5.modeling_t5 import T5Config, T5PreTrainedModel, T5Stack
 from transformers.utils.model_parallel_utils import assert_device_map, get_device_map
 
+import torch
+import torch.nn.functional as F
+
+from torch import Tensor
+from transformers import AutoTokenizer, AutoModel
+
+
+def last_token_pool(last_hidden_states: Tensor,
+                 attention_mask: Tensor) -> Tensor:
+    left_padding = (attention_mask[:, -1].sum() == attention_mask.shape[0])
+    if left_padding:
+        return last_hidden_states[:, -1]
+    else:
+        sequence_lengths = attention_mask.sum(dim=1) - 1
+        batch_size = last_hidden_states.shape[0]
+        return last_hidden_states[torch.arange(batch_size, device=last_hidden_states.device), sequence_lengths]
+
+
+def get_detailed_instruct(task_description: str, query: str) -> str:
+    return f'Instruct: {task_description}\nQuery: {query}'
+
+
+
+class EncT5ForSequenceClassification(T5PreTrainedModel):
+    _keys_to_ignore_on_load_missing = [
+        r"encoder\.embed_tokens\.weight",
+    ]
+
+    def __init__(self, config: T5Config, dropout=0.1):
+        super().__init__(config)
+        self.num_labels = config.num_labels
+        self.config = config
+        self.shared = nn.Embedding(config.vocab_size, config.d_model)
+
+        encoder_config = copy.deepcopy(config)
+        encoder_config.use_cache = False
+        encoder_config.is_encoder_decoder = False
+        self.encoder = T5Stack(encoder_config, self.shared)
+
+        self.dropout = nn.Dropout(dropout)
+
+        # Initialize weights and apply final processing
+        self.post_init()
+
+        # Model parallel
+        self.model_parallel = False
+        self.device_map = None
+
+    # def parallelize(self, device_map=None):
+    #     self.device_map = (
+    #         get_device_map(len(self.encoder.block), range(torch.cuda.device_count()))
+    #         if device_map is None
+    #         else device_map
+    #     )
+    #     assert_device_map(self.device_map, len(self.encoder.block))
+    #     self.encoder.parallelize(self.device_map)
+    #     self.classifier = self.classifier.to(self.encoder.first_device)
+    #     self.model_parallel = True
+
+    # def deparallelize(self):
+    #     self.encoder.deparallelize()
+    #     self.encoder = self.encoder.to("cpu")
+    #     self.model_parallel = False
+    #     self.device_map = None
+    #     torch.cuda.empty_cache()
+
+    def get_input_embeddings(self):
+        return self.shared
+
+    def set_input_embeddings(self, new_embeddings):
+        self.shared = new_embeddings
+        self.encoder.set_input_embeddings(new_embeddings)
+
+    def get_encoder(self):
+        return self.encoder
+
+    def _prune_heads(self, heads_to_prune):
+        """
+        Prunes heads of the model. heads_to_prune: dict of {layer_num: list of heads to prune in this layer} See base
+        class PreTrainedModel
+        """
+        for layer, heads in heads_to_prune.items():
+            self.encoder.layer[layer].attention.prune_heads(heads)
+
+    def forward(
+        self,
+        input_ids=None,
+        attention_mask=None,
+        head_mask=None,
+        inputs_embeds=None,
+        labels=None,
+        output_attentions=None,
+        output_hidden_states=None,
+        return_dict=None,
+    ):
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+
+        outputs = self.encoder(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            inputs_embeds=inputs_embeds,
+            head_mask=head_mask,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+
+        hidden_states = outputs[0]
+        pooled_output = hidden_states[:, 0, :]  # Take bos token (equiv. to <s>)
+
+        pooled_output = self.dropout(pooled_output)
+        return pooled_output
 
 class EncT5Model(T5PreTrainedModel):
     def __init__(self, config: T5Config):
@@ -82,25 +194,22 @@ class EncT5Model(T5PreTrainedModel):
         output_hidden_states=None,
         return_dict=None,
     ):
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
-
         outputs = self.encoder(
             input_ids=input_ids,
             attention_mask=attention_mask,
             inputs_embeds=inputs_embeds,
             head_mask=head_mask,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
+            output_attentions=None,
+            output_hidden_states=True,
             return_dict=return_dict,
         )
+        hidden_states = outputs.last_hidden_state
+        print(hidden_states)
+        pooled_output = hidden_states[:, 0, :]  # Take bos token (equiv. to <s>)
 
-        hidden_states = outputs[0]
-        pooled_output = hidden_states[:, 0, :]
         pooled_output = self.dropout(pooled_output)
+        
         return pooled_output
-
 
 class EncT5Tokenizer(T5Tokenizer):
     def __init__(

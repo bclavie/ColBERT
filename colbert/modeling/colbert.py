@@ -4,6 +4,9 @@ from colbert.utils.utils import print_message, flatten
 from colbert.modeling.base_colbert import BaseColBERT
 from colbert.parameters import DEVICE
 
+
+# from colbert.modeling.enct5 import EncT5Model, EncT5Tokenizer, EncT5ForSequenceClassification
+
 import torch
 import string
 
@@ -13,6 +16,36 @@ from torch.utils.cpp_extension import load
 
 import torch.nn as nn
 
+# TEST_T5_TOKENIZER = EncT5Tokenizer.from_pretrained("facebook/tart-full-flan-t5-xl")
+from transformers import AutoModel, AutoTokenizer
+
+import torch
+from transformers import T5EncoderModel, AutoTokenizer
+from transformers.modeling_outputs import SequenceClassifierOutput
+
+from typing import List, Optional, Union
+import torch
+from transformers import PreTrainedModel, AutoConfig, AutoModelForSeq2SeqLM, AutoTokenizer, T5Model
+
+
+tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen1.5-1.8B-Chat")
+
+
+def last_token_pool(last_hidden_states: torch.Tensor,
+                 attention_mask: torch.Tensor) -> torch.Tensor:
+    left_padding = (attention_mask[:, -1].sum() == attention_mask.shape[0])
+    if left_padding:
+        return last_hidden_states[:, -1]
+    else:
+        sequence_lengths = attention_mask.sum(dim=1) - 1
+        batch_size = last_hidden_states.shape[0]
+        return last_hidden_states[torch.arange(batch_size, device=last_hidden_states.device), sequence_lengths]
+
+
+# print("Loading")
+# encoder = AutoModel.from_pretrained("Qwen/Qwen1.5-1.8B-Chat").to('cuda')
+# tokenizer = AutoTokenizer.from_pretrained('google/flan-t5-xl')
+# print("loaded")
 
 class ColBERT(BaseColBERT):
     """
@@ -39,18 +72,22 @@ class ColBERT(BaseColBERT):
     def train(self, mode=True, only_train_instructor=False):
         super().train(mode=mode)
         if only_train_instructor:
+            # print(self)
             for param in self.parameters():
+                param.requires_grad = False
+            for param in self.model.parameters():
                 param.requires_grad = False
             # Assuming instruction related layers are defined as self.instruction_encoder and self.cross_attention
             # This part might need to be adjusted based on the actual implementation of instruction related layers in ColBERT
-            for param in self.instruction_encoder.parameters():
+            for param in self.model.instruction_encoder.parameters():
                 param.requires_grad = True
-            for param in self.cross_attention.parameters():
+            for param in self.model.cross_attention.parameters():
                 param.requires_grad = True
             try:
-                for param in self.instruction_linear.parameters():
+                for param in self.model.instruction_linear.parameters():
                     param.requires_grad = True
             except AttributeError:
+                print('skip isntruction linear')
                 pass
 
     @classmethod
@@ -76,8 +113,10 @@ class ColBERT(BaseColBERT):
 
         cls.loaded_extensions = True
 
-    def forward(self, Q, D, instruction=None):
-        Q = self.query(*Q, instruction=instruction)
+    def forward(self, Q, D):
+        # print(Q)
+        Q = self.query(*Q)
+        # instruction=instruction)
         D, D_mask = self.doc(*D, keep_dims="return_mask")
 
         # Repeat each query encoding for every corresponding document.
@@ -111,7 +150,9 @@ class ColBERT(BaseColBERT):
             for qidx in range(Q.size(0))
         ]
 
+       
         scores = scores[flatten(all_except_self_negatives)]
+
         scores = scores.view(Q.size(0), -1)  # D.size(0) - self.colbert_config.nway + 1)
 
         labels = torch.arange(0, Q.size(0), device=scores.device) * (
@@ -120,19 +161,54 @@ class ColBERT(BaseColBERT):
 
         return torch.nn.CrossEntropyLoss()(scores, labels)
 
-    def query(self, input_ids, attention_mask, instruction=None):
+    def query(self, input_ids, attention_mask, instruction_ids=None, instruction_masks=None):
         input_ids, attention_mask = (
             input_ids.to(self.device),
             attention_mask.to(self.device),
         )
         Q = self.bert(input_ids, attention_mask=attention_mask)[0]
 
-        if instruction is not None:
-            instruction = {k: v.to(self.device) for k, v in instruction.items()}
-            instruction_embedding = self.instruction_encoder(**instruction)
-            Q = self.cross_attention(Q, instruction_embedding)
+        if instruction_ids is not None:
+            # print("INSTRUCTIONS")
+            # print(instruction)
+            # q = "What is the population of Tokyo?"
+            # in_answer = "retrieve a passage that answers this question from Wikipedia"
 
-        Q = self.linear(Q)
+            # p_1 = "The population of Japan's capital, Tokyo, dropped by about 48,600 people to just under 14 million at the start of 2022, the first decline since 1996, the metropolitan government reported Monday."
+            # p_2 = "Tokyo, officially the Tokyo Metropolis (東京都, Tōkyō-to), is the capital and largest city of Japan."
+
+            # 1. TART-full can identify more relevant paragraph. 
+            # features = tokenizer(['{0} [SEP] {1}'.format(in_answer, q)] * 12, padding=True, truncation=True, return_tensors="pt").to('cuda')          # print(self.model.instruction_encoder.encoder(**instruction))
+            # print('DEBERTA ON SEPARATE TOKENIZER')
+            # print(encoder(**features))
+            # print("DEBERTA MODEL WEIGHTS")
+            # for name, param in TEST_T5.named_parameters():
+                # if torch.isnan(param.data).any():
+                    # print(f"NaN detected in {name}")
+            # print("SEE ABOVE")
+            # print(instruction_ids)
+            # print('____')
+            # print(attention_mask)
+
+            # NO QWEN
+            full_instruction_embedding = self.model.instruction_encoder(instruction_ids, attention_mask=instruction_masks).last_hidden_state
+            
+            # we got bidirectionality at home
+            half_length = full_instruction_embedding.size(1) // 2
+            instruction_embedding = full_instruction_embedding[:, half_length + 1:, :]
+
+            # QWEN
+            # instruction_embedding = last_token_pool(instruction_embedding, instruction_masks)
+
+
+            og_shape = Q.shape
+            # print(instruction_embedding.shape)
+            Q = self.model.cross_attention(Q, instruction_embedding)
+            # print('SHAPE')
+            assert Q.shape == og_shape
+            Q = self.model.instruction_linear(Q)
+        else:
+            Q = self.linear(Q)  
         mask = (
             torch.tensor(self.mask(input_ids, skiplist=[]), device=self.device)
             .unsqueeze(2)

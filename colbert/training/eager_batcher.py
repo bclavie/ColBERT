@@ -50,6 +50,11 @@ class EagerBatcher():
     def collate(self, queries, positives, negatives):
         assert len(queries) == len(positives) == len(negatives) == self.bsize
 
+        print('EAGER BATCHING')
+        print('EAGER BATCHING')
+        print('EAGER BATCHING')
+        print('EAGER BATCHING')
+
         return self.tensorize_triples(queries, positives, negatives, self.bsize // self.accumsteps)
 
     def skip_to_batch(self, batch_idx, intended_batch_size):
