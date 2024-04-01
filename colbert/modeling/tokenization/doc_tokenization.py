@@ -18,6 +18,9 @@ class DocTokenizer():
         self.D_marker_token, self.D_marker_token_id = self.config.doc_token, self.tok.convert_tokens_to_ids(self.config.doc_token_id)
         self.cls_token, self.cls_token_id = self.tok.cls_token, self.tok.cls_token_id
         self.sep_token, self.sep_token_id = self.tok.sep_token, self.tok.sep_token_id
+        self.tok.pad_token = "</s>"
+        self.tok.pad_token_id =  2
+        self.pad_token,self.pad_token_id = self.tok.pad_token,self.tok.pad_token_id
 
     def tokenize(self, batch_text, add_special_tokens=False):
         assert type(batch_text) in [list, tuple], (type(batch_text))

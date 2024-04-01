@@ -69,7 +69,8 @@ def train(config: ColBERTConfig, triples, queries=None, collection=None):
     if warmup_bert is not None:
         set_bert_grad(colbert, False)
 
-    amp = MixedPrecisionManager(config.amp)
+    # amp = MixedPrecisionManager(config.amp)
+    amp = MixedPrecisionManager(False)
     labels = torch.zeros(config.bsize, dtype=torch.long, device=DEVICE)
 
     start_time = time.time()

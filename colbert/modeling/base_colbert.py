@@ -35,6 +35,8 @@ class BaseColBERT(torch.nn.Module):
         
         self.model = HF_ColBERT.from_pretrained(name_or_path, colbert_config=self.colbert_config)
         self.model.to(DEVICE)
+        # ensure model is in full precision
+        self.model.float()
         self.raw_tokenizer = AutoTokenizer.from_pretrained(name_or_path)
 
         self.eval()

@@ -89,8 +89,8 @@ class RunSettings:
 
 @dataclass
 class TokenizerSettings:
-    query_token_id: str = DefaultVal("[unused0]")
-    doc_token_id: str = DefaultVal("[unused1]")
+    query_token_id: str = DefaultVal("<extra_id_99>")
+    doc_token_id: str = DefaultVal("<extra_id_98>")
     query_token: str = DefaultVal("[Q]")
     doc_token: str = DefaultVal("[D]")
 

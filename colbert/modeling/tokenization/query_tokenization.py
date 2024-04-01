@@ -20,9 +20,14 @@ class QueryTokenizer():
         self.Q_marker_token, self.Q_marker_token_id = config.query_token, self.tok.convert_tokens_to_ids(config.query_token_id)
         self.cls_token, self.cls_token_id = self.tok.cls_token, self.tok.cls_token_id
         self.sep_token, self.sep_token_id = self.tok.sep_token, self.tok.sep_token_id
-        self.mask_token, self.mask_token_id = self.tok.mask_token, self.tok.mask_token_id
+        self.mask_token, self.mask_token_id = "<extra_id_97>", 32002
+
+        self.tok.pad_token = "</s>"
+        self.tok.pad_token_id =  2
         self.pad_token,self.pad_token_id = self.tok.pad_token,self.tok.pad_token_id
         self.used = False
+
+        # <extra_id_97>
 
     def tokenize(self, batch_text, add_special_tokens=False):
         assert type(batch_text) in [list, tuple], (type(batch_text))

@@ -84,7 +84,11 @@ class ColBERT(BaseColBERT):
 
     def query(self, input_ids, attention_mask):
         input_ids, attention_mask = input_ids.to(self.device), attention_mask.to(self.device)
-        Q = self.bert(input_ids, attention_mask=attention_mask)[0]
+        print(self.bert)
+        # input_ids = input_ids.float()
+        # attention_mask = attention_mask.float()
+        
+        Q = self.bert.encoder(input_ids, attention_mask=attention_mask).last_hidden_state
         Q = self.linear(Q)
 
         mask = torch.tensor(self.mask(input_ids, skiplist=[]), device=self.device).unsqueeze(2).float()
@@ -96,14 +100,15 @@ class ColBERT(BaseColBERT):
         assert keep_dims in [True, False, 'return_mask']
 
         input_ids, attention_mask = input_ids.to(self.device), attention_mask.to(self.device)
-        D = self.bert(input_ids, attention_mask=attention_mask)[0]
+            
+        D = self.bert.encoder(input_ids, attention_mask=attention_mask)[0]
         D = self.linear(D)
         mask = torch.tensor(self.mask(input_ids, skiplist=self.skiplist), device=self.device).unsqueeze(2).float()
         D = D * mask
 
         D = torch.nn.functional.normalize(D, p=2, dim=2)
-        if self.use_gpu:
-            D = D.half()
+        # if self.use_gpu:
+            # D = D.half()
 
         if keep_dims is False:
             D, mask = D.cpu(), mask.bool().cpu().squeeze(-1)
