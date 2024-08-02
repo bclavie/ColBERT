@@ -59,7 +59,7 @@ class LazyBatcher():
             all_queries.append(query)
             all_passages.extend(passages)
             all_scores.extend(scores)
-        
+
         assert len(all_scores) in [0, len(all_passages)], len(all_scores)
 
         return self.collate(all_queries, all_passages, all_scores)

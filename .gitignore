@@ -21,3 +21,6 @@ __pycache__/
 # Other
 .vscode
 *.tsv
+
+colbert_ai.egg-info/
+results*.json

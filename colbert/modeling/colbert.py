@@ -99,6 +99,7 @@ class ColBERT(BaseColBERT):
         D = self.bert(input_ids, attention_mask=attention_mask)[0]
         D = self.linear(D)
         mask = torch.tensor(self.mask(input_ids, skiplist=self.skiplist), device=self.device).unsqueeze(2).float()
+        mask *= attention_mask[:, 0, :].unsqueeze(-1).float()
         D = D * mask
 
         D = torch.nn.functional.normalize(D, p=2, dim=2)

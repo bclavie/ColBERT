@@ -63,7 +63,7 @@ def class_factory(name_or_path):
         model_type = loadedConfig.model_type
         pretrained_class = find_class_names(model_type, 'pretrainedmodel')
         model_class = find_class_names(model_type, 'model')
-        
+
         if pretrained_class is not None:
             pretrained_class_object = getattr(transformers, pretrained_class)
         elif model_type == 'xlm-roberta':
@@ -97,6 +97,11 @@ def class_factory(name_or_path):
         _keys_to_ignore_on_load_unexpected = [r"cls"]
 
         def __init__(self, config, colbert_config):
+            assert config._attn_implementation == 'sdpa'
+            if colbert_config.gist_freq > 1:
+                # Need to use custom 3D masks
+                config._attn_implementation = 'eager'
+
             super().__init__(config)
 
             self.config = config
@@ -117,7 +122,6 @@ def class_factory(name_or_path):
         def LM(self):
             base_model_prefix = getattr(self, "base_model_prefix")
             return getattr(self, base_model_prefix)
-
 
         @classmethod
         def from_pretrained(cls, name_or_path, colbert_config):

@@ -159,7 +159,6 @@ def train(config: ColBERTConfig, triples, queries=None, collection=None):
                 scores = scores.view(-1, config.nway)
                 if config.normalise_training_scores:
                     if config.normalization_method == "minmax":
-                        print('norm')
                         scores = (scores - scores.min(dim=-1, keepdim=True)[0]) / (
                             scores.max(dim=-1, keepdim=True)[0]
                             - scores.min(dim=-1, keepdim=True)[0]

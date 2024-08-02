@@ -1,6 +1,5 @@
 import torch
 
-from contextlib import contextmanager
 from colbert.utils.utils import NullContextManager
 
 
@@ -9,10 +8,10 @@ class MixedPrecisionManager():
         self.activated = activated
 
         if self.activated:
-            self.scaler = torch.cuda.amp.GradScaler()
+            self.scaler = torch.amp.GradScaler("cuda")
 
     def context(self):
-        return torch.cuda.amp.autocast() if self.activated else NullContextManager()
+        return torch.amp.autocast("cuda") if self.activated else NullContextManager()
 
     def backward(self, loss):
         if self.activated:

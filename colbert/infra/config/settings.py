@@ -112,6 +112,7 @@ class DocSettings:
     dim: int = DefaultVal(128)
     doc_maxlen: int = DefaultVal(220)
     mask_punctuation: bool = DefaultVal(True)
+    gist_freq: int = DefaultVal(0)
 
 
 @dataclass
