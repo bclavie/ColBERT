@@ -97,7 +97,6 @@ class DocTokenizer():
             num_global = 2  # [CLS] and D_marker_token_id
 
             mask = torch.zeros((batch_size, max_seq_len, max_seq_len), dtype=torch.int64).to(DEVICE)
-            mask = torch.zeros_like(mask)
             gist_start = torch.where(ids[0] == self.gist_token_id)[0][0]
             gist_idxs = torch.arange(gist_start, max_seq_len, self.gist_freq + 1)
 
