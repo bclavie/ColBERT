@@ -41,7 +41,10 @@ def _sort_by_length(ids, mask, bsize):
     if ids.size(0) <= bsize:
         return ids, mask, torch.arange(ids.size(0))
 
-    indices = mask.sum(-1).sort().indices
+    if mask.ndim == 3:
+        indices = mask[:, 0, :].sum(-1).sort().indices
+    else:
+        indices = mask.sum(-1).sort().indices
     reverse_indices = indices.sort().indices
 
     return ids[indices], mask[indices], reverse_indices

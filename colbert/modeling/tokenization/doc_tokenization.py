@@ -70,7 +70,7 @@ class DocTokenizer():
         batch_text = ['. ' + x for x in batch_text]
 
         batch_tokens = [
-            self.tok.tokenize(x, add_special_tokens=False) for x in batch_text   
+            self.tok.tokenize(x, add_special_tokens=False) for x in batch_text
         ]
 
         if self.gist_freq > 1:
@@ -97,8 +97,7 @@ class DocTokenizer():
             num_global = 2  # [CLS] and D_marker_token_id
 
             mask = torch.zeros((batch_size, max_seq_len, max_seq_len), dtype=torch.int64).to(DEVICE)
-            gist_start = torch.where(ids[0] == self.gist_token_id)[0][0]
-            gist_idxs = torch.arange(gist_start, max_seq_len, self.gist_freq + 1)
+            gist_idxs = torch.arange(num_global + self.gist_freq, max_seq_len, self.gist_freq + 1)
 
             # Global tokens attend to themselves
             mask[:, :num_global, :num_global] = 1
