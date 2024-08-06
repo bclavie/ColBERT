@@ -97,14 +97,13 @@ class ColBERT(BaseColBERT):
 
         input_ids, attention_mask = input_ids.to(self.device), attention_mask.to(self.device)
 
-        return_mask = torch.tensor(self.mask(input_ids, skiplist=self.skiplist), device=self.device).unsqueeze(2).float()
-
         if attention_mask.ndim == 3:
             # GIST attention masks indicate GIST and special tokens as 2s
             # Need to convert to 1s for BERT
-            return_mask *= (attention_mask[:, 0, :].unsqueeze(-1) == 2).float()
+            return_mask = (attention_mask[:, 0, :].unsqueeze(-1) == 2).float()
             bert_mask = (attention_mask > 0).long()
         else:
+            return_mask = torch.tensor(self.mask(input_ids, skiplist=self.skiplist), device=self.device).unsqueeze(2).float()
             bert_mask = attention_mask
 
         D = self.bert(input_ids, attention_mask=bert_mask)[0]
