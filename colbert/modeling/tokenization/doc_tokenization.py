@@ -96,41 +96,50 @@ class DocTokenizer():
         if self.gist_freq > 1:
             num_global = 2  # [CLS] and D_marker_token_id
 
-            mask = torch.zeros((batch_size, max_seq_len, max_seq_len), dtype=torch.int64).to(DEVICE)
+            mask = torch.ones((batch_size, max_seq_len, max_seq_len), dtype=torch.int64).to(DEVICE)
             gist_idxs = torch.arange(num_global + self.gist_freq, max_seq_len, self.gist_freq + 1)
 
-            # Global tokens attend to themselves
-            mask[:, :num_global, :num_global] = 1
-
-            # GISTs and global tokens attend to each other
-            mask[:, gist_idxs, :num_global] = 1
-            mask[:, :num_global, gist_idxs] = 1
-
-            curr_start = num_global
+            last_gist_idx = num_global - 1
             for idx in gist_idxs:
-                # Local attention within gist
-                mask[:, curr_start:idx + 1, curr_start:idx + 1] = 1
-                curr_start = idx
+                # Tokens cannot see GISTs
+                mask[:, num_global:, idx] = 0
 
-                # GISTs attend to other gists
-                mask[:, idx, gist_idxs] = 1
+                # GIST token can see itself
+                mask[:, idx, idx] = 1
 
-            # Preserve [SEP] token and mask out pad tokens
+                # GIST tokens should not see tokens at or before previous GIST
+                mask[:, idx, :last_gist_idx + 1] = 0
+                # Or after itself
+                mask[:, idx, idx + 1:] = 0
+
+                # Update last gist idx to current
+                last_gist_idx = idx
+            
+            # All tokens can see global tokens
+            mask[:, :, :num_global] = 1
+            # Global tokens can see all tokens
+            mask[:, :num_global, :] = 1
+
             for i in range(batch_size):
-                # [SEP] and CLS + doc attend to each other
-                mask[i, seq_lens[i] - 1, :num_global] = 1
-                mask[i, :num_global, seq_lens[i] - 1] = 1
-
-                # [SEP] and GISTS attend to each other
-                mask[i, seq_lens[i] - 1, gist_idxs] = 1
-                mask[i, gist_idxs, seq_lens[i] - 1] = 1
-
-                # [SEP] attends to itself
-                mask[i, seq_lens[i] - 1, seq_lens[i] - 1] = 1
-
                 # Ignore padded tokens
                 mask[i, seq_lens[i]:, :] = 0
                 mask[i, :, seq_lens[i]:] = 0
+
+                # Every token can see [SEP]
+                mask[i, :, seq_lens[i] - 1] = 1
+                # [SEP] can see every token
+                mask[i, seq_lens[i] - 1, :] = 1
+
+            # To avoid passing in 2 masks, let's use the first position to indicate which are tokens we are indexing
+            # Set these to 2
+            # We are indexing global tokens
+            mask[:, 0, :num_global] = 2
+            mask[:, 0, gist_idxs] = 2
+            for i in range(batch_size):
+                # We are keeping [SEP]
+                mask[i, 0, seq_lens[i] - 1] = 2
+                # Ignore padded tokens
+                mask[i, 0, seq_lens[i]:] = 0
         else:
             mask = torch.ones((batch_size, max_seq_len), dtype=torch.int64).to(DEVICE)
             for i in range(batch_size):

@@ -61,4 +61,5 @@ if __name__ == '__main__':
     parser.add_argument('--cap_padding', type=int, default=0, help='Cap padding')
     parser.add_argument('--gist_freq', type=int, default=4, help='Number of tokens in between consecutive GIST tokens. 0 for no GIST.')
     args = parser.parse_args()
+    
     train(args)

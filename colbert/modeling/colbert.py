@@ -96,13 +96,21 @@ class ColBERT(BaseColBERT):
         assert keep_dims in [True, False, 'return_mask']
 
         input_ids, attention_mask = input_ids.to(self.device), attention_mask.to(self.device)
-        D = self.bert(input_ids, attention_mask=attention_mask)[0]
-        D = self.linear(D)
-        mask = torch.tensor(self.mask(input_ids, skiplist=self.skiplist), device=self.device).unsqueeze(2).float()
-        # Hacky but this means we are defining a GIST mask (for now)
+
+        return_mask = torch.tensor(self.mask(input_ids, skiplist=self.skiplist), device=self.device).unsqueeze(2).float()
+
         if attention_mask.ndim == 3:
-            mask *= attention_mask[:, 0, :].unsqueeze(-1).float()
-        D = D * mask
+            # GIST attention masks indicate GIST and special tokens as 2s
+            # Need to convert to 1s for BERT
+            return_mask *= (attention_mask[:, 0, :].unsqueeze(-1) == 2).float()
+            bert_mask = (attention_mask > 0).long()
+        else:
+            bert_mask = attention_mask
+
+        D = self.bert(input_ids, attention_mask=bert_mask)[0]
+        D = self.linear(D)
+        # Hacky but this means we are defining a GIST mask (for now)
+        D = D * return_mask
 
         D = torch.nn.functional.normalize(D, p=2, dim=2)
         if self.use_gpu:
@@ -110,10 +118,10 @@ class ColBERT(BaseColBERT):
 
         if keep_dims is False:
             D, mask = D.cpu(), mask.bool().cpu().squeeze(-1)
-            D = [d[mask[idx]] for idx, d in enumerate(D)]
+            D = [d[return_mask[idx]] for idx, d in enumerate(D)]
 
         elif keep_dims == 'return_mask':
-            return D, mask.bool()
+            return D, return_mask.bool()
 
         return D
 
