@@ -131,12 +131,18 @@ def train(config: ColBERTConfig, triples, queries=None, collection=None):
 
     #     reader.skip_to_batch(start_batch_idx, checkpoint['arguments']['bsize'])
 
+    if config.rank < 1:
+        sec_per_batch = []
+
     for batch_idx, BatchSteps in zip(range(start_batch_idx, config.maxsteps), reader):
         if (warmup_bert is not None) and warmup_bert <= batch_idx:
             set_bert_grad(colbert, True)
             warmup_bert = None
 
         this_batch_loss = 0.0
+
+        if config.rank < 1:
+            t0 = time.time()
 
         for batch in BatchSteps:
             with amp.context():
@@ -234,6 +240,14 @@ def train(config: ColBERTConfig, triples, queries=None, collection=None):
         amp.step(colbert, optimizer, scheduler)
 
         if config.rank < 1:
+            sec_per_batch.append(time.time() - t0)
+
+            avg_sec_per_batch = np.mean(sec_per_batch)
+            remaining_batches = config.maxsteps - batch_idx - 1
+            print("ETA: " + str(round(remaining_batches * avg_sec_per_batch / (60 * 60), 1)) + "hrs")
+            print("Batches / sec: " + str(1 / avg_sec_per_batch))
+            print("Runtime: " + str(time.time() - start_time) + "h")
+
             if config.use_ib_negatives:
                 print_message(f"IB Loss: {ib_loss}")
                 print_message(f"KL-D loss: {og_loss}")

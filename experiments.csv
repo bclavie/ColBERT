@@ -1,3 +1,4 @@
 name,path
 "baseline","~/ColBERT/experiments/baseline/none/2024-08/02/19.35.20/checkpoints/colbert"
 "gist_4","~/ColBERT/experiments/gist_4/none/2024-08/05/21.15.42/checkpoints/colbert"
+"gist_4_v2","~/ColBERT/experiments/gist_4_v2/none/2024-08/06/21.00.06/checkpoints/colbert"
