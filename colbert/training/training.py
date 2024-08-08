@@ -246,7 +246,7 @@ def train(config: ColBERTConfig, triples, queries=None, collection=None):
             remaining_batches = config.maxsteps - batch_idx - 1
             print("ETA: " + str(round(remaining_batches * avg_sec_per_batch / (60 * 60), 1)) + "hrs")
             print("Batches / sec: " + str(1 / avg_sec_per_batch))
-            print("Runtime: " + str(time.time() - start_time) + "h")
+            print("Runtime: " + str((time.time() - start_time) / (60 * 60)) + "h")
 
             if config.use_ib_negatives:
                 print_message(f"IB Loss: {ib_loss}")

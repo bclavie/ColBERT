@@ -26,28 +26,32 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--experiment", type=str, default="baseline", help="Path to the experiment file")
     parser.add_argument("--data_dir", type=str, default="./data", help="Path to the data directory")
-    parser.add_argument("--dataset", type=str, default="litsearch", help="Path to the index directory")
+    parser.add_argument("--datasets", nargs='+', default=["litsearch", "scifact"], help="Name of datasets to test")
     args = parser.parse_args()
 
     experiments = pd.read_csv("./experiments.csv")
     experiment2path = dict(zip(experiments["name"], experiments["path"]))
     model = os.path.expanduser(experiment2path[args.experiment])
 
-    docs, _ = get_data(args.data_dir, args.dataset)
-    print("Doc sample:")
-    print(docs[0])
-    print(f"Indexing {len(docs)} documents", flush=True)
-    model_name = model.split('experiments/')[1].split('/')[0]
     config = ColBERTConfig(
-            nbits=2,
-            nranks=1,
-            root=".ablation_v1_en/",
-            avoid_fork_if_possible=True,
-            overwrite=True,
-            kmeans_niters=20,
-            bsize=16,
-            index_bsize=32,
-            doc_maxlen=400,
-        )
+        nbits=2,
+        nranks=1,
+        root=".ablation_v1_en/",
+        avoid_fork_if_possible=True,
+        overwrite=True,
+        kmeans_niters=20,
+        bsize=16,
+        index_bsize=32,
+        doc_maxlen=400,
+    )
+
+    model_name = model.split('experiments/')[1].split('/')[0]
     indexer = Indexer(checkpoint=model, config=config)
-    indexer.index(name=f"{args.dataset}_{args.experiment}", collection=docs, overwrite=True)
+
+    for dataset in args.datasets:
+        print(f"Building index for {dataset}")
+        docs, _ = get_data(args.data_dir, dataset)
+        print("Doc sample:")
+        print(docs[0])
+        print(f"Indexing {len(docs)} documents", flush=True)
+        indexer.index(name=f"{dataset}_{args.experiment}", collection=docs, overwrite=True)
