@@ -20,7 +20,7 @@ class DocTokenizer():
         self.cls_token, self.cls_token_id = self.tok.cls_token, self.tok.cls_token_id
         self.sep_token, self.sep_token_id = self.tok.sep_token, self.tok.sep_token_id
 
-        self.gist_token = "[unused0]"
+        self.gist_token = "[unused2]"
         self.gist_token_id = self.tok.get_vocab()[self.gist_token]
         self.gist_freq = config.gist_freq
 
