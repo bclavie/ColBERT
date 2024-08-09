@@ -97,19 +97,29 @@ class ColBERT(BaseColBERT):
 
         input_ids, attention_mask = input_ids.to(self.device), attention_mask.to(self.device)
 
-        if attention_mask.ndim == 3:
-            # GIST attention masks indicate GIST and special tokens as 2s
-            # Need to convert to 1s for BERT
-            return_mask = (attention_mask[:, 0, :].unsqueeze(-1) == 2).float()
-            bert_mask = (attention_mask > 0).long()
-        else:
-            return_mask = torch.tensor(self.mask(input_ids, skiplist=self.skiplist), device=self.device).unsqueeze(2).float()
-            bert_mask = attention_mask
+        out_mask = torch.tensor(self.mask(input_ids, skiplist=self.skiplist), device=self.device).unsqueeze(2).float()
+        bert_mask = attention_mask
 
         D = self.bert(input_ids, attention_mask=bert_mask)[0]
         D = self.linear(D)
-        # Hacky but this means we are defining a GIST mask (for now)
-        D = D * return_mask
+
+        D = D * out_mask
+
+        # Separate out Special Tokens
+        special = D[:, :2]
+        special_mask = out_mask[:, :2]
+        D = D[:, 2:]
+        out_mask = out_mask[:, 2:]
+
+        # Pooling by averaging over consecutive gist_freq tokens.
+        D = D.view(D.size(0), -1, self.colbert_config.gist_freq, self.colbert_config.dim)
+        out_mask = out_mask.view(out_mask.size(0), -1, self.colbert_config.gist_freq)
+        num_gists = out_mask.sum(-1)
+
+        D = D.sum(-2) / num_gists.unsqueeze(-1).clamp_min(1)
+
+        D = torch.cat([special, D], dim=1)
+        out_mask = torch.cat([special_mask, (num_gists > 0).float().unsqueeze(-1)], dim=1)
 
         D = torch.nn.functional.normalize(D, p=2, dim=2)
         if self.use_gpu:
@@ -117,10 +127,10 @@ class ColBERT(BaseColBERT):
 
         if keep_dims is False:
             D, mask = D.cpu(), mask.bool().cpu().squeeze(-1)
-            D = [d[return_mask[idx]] for idx, d in enumerate(D)]
+            D = [d[out_mask[idx]] for idx, d in enumerate(D)]
 
         elif keep_dims == 'return_mask':
-            return D, return_mask.bool()
+            return D, out_mask.bool()
 
         return D
 
