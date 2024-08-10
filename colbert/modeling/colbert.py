@@ -101,7 +101,7 @@ class ColBERT(BaseColBERT):
         bert_mask = attention_mask
 
         D = self.bert(input_ids, attention_mask=bert_mask)[0]
-        D = self.linear(D)
+        # D = self.linear(D)
 
         D = D * out_mask
 
@@ -112,7 +112,7 @@ class ColBERT(BaseColBERT):
         out_mask = out_mask[:, 2:]
 
         # Pooling by averaging over consecutive gist_freq tokens.
-        D = D.view(D.size(0), -1, self.colbert_config.gist_freq, self.colbert_config.dim)
+        D = D.view(D.size(0), -1, self.colbert_config.gist_freq, D.size(-1))
         out_mask = out_mask.view(out_mask.size(0), -1, self.colbert_config.gist_freq)
         num_gists = out_mask.sum(-1)
 
@@ -120,6 +120,9 @@ class ColBERT(BaseColBERT):
 
         D = torch.cat([special, D], dim=1)
         out_mask = torch.cat([special_mask, (num_gists > 0).float().unsqueeze(-1)], dim=1)
+
+        D = self.linear(D)
+        D = D * out_mask
 
         D = torch.nn.functional.normalize(D, p=2, dim=2)
         if self.use_gpu:
