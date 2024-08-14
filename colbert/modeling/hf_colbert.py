@@ -28,8 +28,6 @@ base_class_mapping={
     "bert-large-uncased": BertPreTrainedModel,
     "microsoft/mdeberta-v3-base": DebertaV2PreTrainedModel,
     "bert-base-multilingual-uncased": BertPreTrainedModel
-
-
 }
 
 model_object_mapping = {

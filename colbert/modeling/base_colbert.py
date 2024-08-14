@@ -1,6 +1,7 @@
 import os
 import torch
 import sys
+import torch.nn as nn
 
 from colbert.utils.utils import torch_load_dnn
 
@@ -37,6 +38,13 @@ class BaseColBERT(torch.nn.Module):
         self.model.to(DEVICE)
         self.raw_tokenizer = AutoTokenizer.from_pretrained(name_or_path)
 
+        self.attn_weight = nn.Linear(self.model.config.hidden_size, 1, bias=False)
+
+        attn_weight_fn = os.path.join(name_or_path, 'attn_weight.pth')
+        if os.path.exists(attn_weight_fn):
+            print("Loading the attention weight from", attn_weight_fn)
+            self.attn_weight.load_state_dict(torch.load(attn_weight_fn, weights_only=True), strict=True)
+
         self.eval()
 
     @property
@@ -60,6 +68,7 @@ class BaseColBERT(torch.nn.Module):
 
         self.model.save_pretrained(path)
         self.raw_tokenizer.save_pretrained(path)
+        torch.save(self.attn_weight.state_dict(), os.path.join(path, 'attn_weight.pth'))
 
         self.colbert_config.save_for_checkpoint(path)
 
