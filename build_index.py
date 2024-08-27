@@ -26,7 +26,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--experiment", type=str, default="baseline", help="Path to the experiment file")
     parser.add_argument("--data_dir", type=str, default="./data", help="Path to the data directory")
-    parser.add_argument("--datasets", nargs='+', default=["litsearch", "scifact"], help="Name of datasets to test")
+    parser.add_argument("--datasets", nargs='+', default=["litsearch", "scifact", "trec-covid"], help="Name of datasets to test")
     args = parser.parse_args()
 
     experiments = pd.read_csv("./experiments.csv")

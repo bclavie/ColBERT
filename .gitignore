@@ -25,3 +25,6 @@ __pycache__/
 colbert_ai.egg-info/
 results*.csv
 results*.json
+
+*.out
+gist_data/*

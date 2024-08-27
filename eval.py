@@ -33,6 +33,28 @@ def load_data(data_dir, dataset, **kwargs):
         int2docid = {int(k): v for k, v in srsly.read_json(os.path.join(data_dir, 'scifact_int2docid.json')).items()}
 
         return int2docid, queries, qrels_dict
+    
+    elif dataset == "trec-covid":
+        dataset = ir_datasets.load("beir/trec-covid/test")
+        all_queries = {}
+        for q in dataset.queries_iter():
+            all_queries[q.query_id] = q.text
+
+        queries = {id: query for id, query in all_queries.items()}
+
+        print(f"Found {len(queries)} queries")
+        print(queries)
+
+        qrels_dict = defaultdict(dict)
+        for qrel in dataset.qrels_iter():
+            if qrel.query_id in queries:
+                qrels_dict[qrel.query_id][qrel.doc_id] = qrel.relevance
+
+        print("Loading documents...")
+        int2docid = {int(k): v for k, v in srsly.read_json(os.path.join(data_dir, 'trec-covid_int2docid.json')).items()}
+
+        return int2docid, queries, qrels_dict
+
     elif dataset == "litsearch":
         print("Loading dataset...")
         dataset_name = 'princeton-nlp/LitSearch'
@@ -102,21 +124,12 @@ def run(args, **kwargs):
     if dataset == "litsearch":
         metrics = {
             'recall@5': evaluate(qrels, run, "recall@5"),
-            'recall@10': evaluate(qrels, run, "recall@10"),
             'recall@20': evaluate(qrels, run, "recall@20"),
         }
     else:
-        mrr10 = evaluate(qrels, run, "mrr@10")
-        map10 = evaluate(qrels, run, "map@10")
         ndcg10 = evaluate(qrels, run, "ndcg@10")
-        recall50 = evaluate(qrels, run, "recall@50")
-        recall100 = evaluate(qrels, run, "recall@100")
         metrics = {
-            'mrr@10': mrr10,
-            'map@10': map10,
-            'ndcg@10': ndcg10,
-            'recall@50': recall50,
-            'recall@100': recall100
+            'ndcg@10': ndcg10
         }
 
     print(args.dataset, kwargs)
@@ -134,7 +147,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--experiment", type=str, default="baseline", help="Path to the experiment file")
     parser.add_argument("--data_dir", type=str, default="./data", help="Path to the data directory")
-    parser.add_argument("--datasets", nargs='+', default=["litsearch", "scifact"], help="Name of datasets to test")
+    parser.add_argument("--datasets", nargs='+', default=["litsearch", "scifact", 'trec-covid'], help="Name of datasets to test")
 
     args = parser.parse_args()
 

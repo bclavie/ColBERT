@@ -23,7 +23,7 @@ def train(args):
 
         config = ColBERTConfig(
             bsize=args.bsize, lr=args.lr, warmup=args.warmup, doc_maxlen=args.doc_maxlen,
-            dim=128, nway=args.nway, accumsteps=args.accumsteps,  use_ib_negatives=args.use_ib_negatives,
+            dim=96, nway=args.nway, accumsteps=args.accumsteps,  use_ib_negatives=args.use_ib_negatives,
             schedule_free=args.schedule_free, kldiv_loss=args.kldiv_loss, marginmse_loss=args.marginmse_loss,
             kldiv_weight=args.kldiv_weight, marginmse_weight=args.marginmse_weight,
             normalise_training_scores=args.normalise_training_scores, normalization_method=args.normalization_method,
@@ -40,17 +40,17 @@ def train(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train ColBERT model')
-    parser.add_argument('--triplets', type=str, default=str(Path(__file__).parent.parent / "320k_triplets_normalized.jsonl"), help='Path to triplets file')
-    parser.add_argument('--data', type=str, default=str(Path(__file__).parent / 'data'), help='Path to data')
+    parser.add_argument('--triplets', type=str, default=str(Path(__file__).parent / "gist_data/100k_triplets_normalized.jsonl"), help='Path to triplets file')
+    parser.add_argument('--data', type=str, default=str(Path(__file__).parent / 'gist_data'), help='Path to data')
     parser.add_argument('--experiment', type=str, default="pool_4", help='Experiment name')
-    parser.add_argument('--base_model', type=str, default='bert-base-uncased', help='Base model')  # bclavie/JaColBERT
-    parser.add_argument('--bsize', type=int, default=32, help='Batch size')  # 64
+    parser.add_argument('--base_model', type=str, default='answerdotai/answerai-colbert-small-v1', help='Base model')  # bclavie/JaColBERT
+    parser.add_argument('--bsize', type=int, default=64, help='Batch size')  # 64
     parser.add_argument('--lr', type=float, default=1e-05, help='Learning rate')
-    parser.add_argument('--warmup', type=int, default=2500, help='Warmup steps')  # 500
-    parser.add_argument('--doc_maxlen', type=int, default=400, help='Maximum document length')  # 300
+    parser.add_argument('--warmup', type=int, default=100, help='Warmup steps')  # 500
+    parser.add_argument('--doc_maxlen', type=int, default=300, help='Maximum document length')  # 300
     parser.add_argument('--use_ib_negatives', type=lambda x: x.lower() == 'true', default=False, help='Use in-batch negatives')
-    parser.add_argument('--nway', type=int, default=16, help='Number of ways for training')  # 32
-    parser.add_argument('--accumsteps', type=int, default=2, help='Gradient accumulation steps')  # 1
+    parser.add_argument('--nway', type=int, default=32, help='Number of ways for training')  # 32
+    parser.add_argument('--accumsteps', type=int, default=1, help='Gradient accumulation steps')  # 1
     parser.add_argument('--schedule_free', type=lambda x: x.lower() == 'true', default=False, help='Use schedule free training')
     parser.add_argument('--schedule_free_wd', type=float, default=0.0, help='Weight decay for schedule free training')
     parser.add_argument('--kldiv_loss', type=lambda x: x.lower() == 'true', default=True, help='Use KL divergence loss')
