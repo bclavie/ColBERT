@@ -106,16 +106,15 @@ class ColBERT(BaseColBERT):
         D = D * out_mask
 
         # Separate out Special Tokens
-        special = D[:, :2]
-        special_mask = out_mask[:, :2]
-        D = D[:, 2:]
-        out_mask = out_mask[:, 2:]
-        
-        weights = self.attn_weight(D)
 
         # Pooling by averaging over consecutive gist_freq tokens.
 
         if self.colbert_config.gist_freq != 0:
+            special = D[:, :2]
+            special_mask = out_mask[:, :2]
+            D = D[:, 2:]
+            out_mask = out_mask[:, 2:]
+            weights = self.attn_weight(D)
             if self.colbert_config.hierarchical_gist:
                 # TODO: HELLO GRIFFIN
                 # TODO: I CREATE THIS NEAT NOOK FOR THE SUPERPOWERED BASELINE
@@ -135,9 +134,8 @@ class ColBERT(BaseColBERT):
                 D = D.sum(-2)
 
                 # D = D.sum(-2) / num_gists.unsqueeze(-1).clamp_min(1)
-
-        D = torch.cat([special, D], dim=1)
-        out_mask = torch.cat([special_mask, (num_gists > 0).float().unsqueeze(-1)], dim=1)
+                D = torch.cat([special, D], dim=1)
+                out_mask = torch.cat([special_mask, (num_gists > 0).float().unsqueeze(-1)], dim=1)
 
         D = self.linear(D)
         D = D * out_mask
