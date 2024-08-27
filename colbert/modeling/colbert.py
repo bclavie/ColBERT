@@ -114,12 +114,12 @@ class ColBERT(BaseColBERT):
             special_mask = out_mask[:, :2]
             D = D[:, 2:]
             out_mask = out_mask[:, 2:]
-            weights = self.attn_weight(D)
-            if self.colbert_config.hierarchical_gist:
+            if self.colbert_config.hierarchical_gist_in_training:
                 # TODO: HELLO GRIFFIN
                 # TODO: I CREATE THIS NEAT NOOK FOR THE SUPERPOWERED BASELINE
                 pass
             else:
+                weights = self.attn_weight(D)
                 D = D.view(D.size(0), -1, self.colbert_config.gist_freq, D.size(-1))
 
                 out_mask = out_mask.view(out_mask.size(0), -1, self.colbert_config.gist_freq)

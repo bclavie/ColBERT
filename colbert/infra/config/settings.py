@@ -113,6 +113,7 @@ class DocSettings:
     doc_maxlen: int = DefaultVal(220)
     mask_punctuation: bool = DefaultVal(True)
     gist_freq: int = DefaultVal(0)
+    hierarchical_gist_in_training: bool = DefaultVal(False)
 
 
 @dataclass

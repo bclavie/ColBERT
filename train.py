@@ -28,7 +28,7 @@ def train(args):
             kldiv_weight=args.kldiv_weight, marginmse_weight=args.marginmse_weight,
             normalise_training_scores=args.normalise_training_scores, normalization_method=args.normalization_method,
             maxsteps=max_num_steps, schedule_free_wd=args.schedule_free_wd, cap_padding=args.cap_padding,
-            gist_freq=args.gist_freq
+            gist_freq=args.gist_freq, hierarchical_gist_in_training=args.hierarchical_gist_in_training, pool_factor=args.gist_freq if args.hierarchical_gist_in_training else 0,
         )
 
         print(config)
@@ -61,6 +61,7 @@ if __name__ == '__main__':
     parser.add_argument('--normalization_method', type=str, default='minmax', choices=['minmax', 'querylen'], help='Normalization method')
     parser.add_argument('--cap_padding', type=int, default=0, help='Cap padding')
     parser.add_argument('--gist_freq', type=int, default=4, help='Number of tokens in between consecutive GIST tokens. 0 for no GIST.')
+    parser.add_argument('--hierarchical_gist_in_training', type=lambda x: x.lower() == 'true', default=False, help='Use hierarchical GIST in training')
     args = parser.parse_args()
     
     train(args)
