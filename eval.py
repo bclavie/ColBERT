@@ -35,7 +35,7 @@ def load_data(data_dir, dataset, **kwargs):
         return int2docid, queries, qrels_dict
     
     elif dataset == "trec-covid":
-        dataset = ir_datasets.load("beir/trec-covid/test")
+        dataset = ir_datasets.load("beir/trec-covid")
         all_queries = {}
         for q in dataset.queries_iter():
             all_queries[q.query_id] = q.text
@@ -106,8 +106,8 @@ def run(args, **kwargs):
         root=".experiment/",
         avoid_fork_if_possible=True,
         ncells=8,
-        ndocs=4096,
-        centroid_score_threshold=0.3,
+        ndocs=8192 if 'trec' in args.dataset else 4096,
+        centroid_score_threshold=0.35,
     )
     searcher_path = f"{args.dataset}_{args.experiment}"
     searcher = Searcher(index=searcher_path, config=config)
@@ -146,7 +146,7 @@ def run(args, **kwargs):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--experiment", type=str, default="baseline", help="Path to the experiment file")
-    parser.add_argument("--data_dir", type=str, default="./data", help="Path to the data directory")
+    parser.add_argument("--data_dir", type=str, default="./gist_data", help="Path to the data directory")
     parser.add_argument("--datasets", nargs='+', default=["litsearch", "scifact", 'trec-covid'], help="Name of datasets to test")
 
     args = parser.parse_args()

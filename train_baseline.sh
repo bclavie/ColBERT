@@ -21,4 +21,5 @@ python train.py --data="/home/azureuser/GistColBERT/gist_data/" \
 --marginmse_weight=0.05 \
 --normalise_training_scores=true \
 --normalization_method='minmax' \
---experiment="pool_4"
+--gist_freq=0 \
+--experiment="baseline"

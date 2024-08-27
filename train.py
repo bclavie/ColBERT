@@ -47,7 +47,7 @@ if __name__ == '__main__':
     parser.add_argument('--bsize', type=int, default=64, help='Batch size')  # 64
     parser.add_argument('--lr', type=float, default=1e-05, help='Learning rate')
     parser.add_argument('--warmup', type=int, default=100, help='Warmup steps')  # 500
-    parser.add_argument('--doc_maxlen', type=int, default=300, help='Maximum document length')  # 300
+    parser.add_argument('--doc_maxlen', type=int, default=280, help='Maximum document length')  # 300
     parser.add_argument('--use_ib_negatives', type=lambda x: x.lower() == 'true', default=False, help='Use in-batch negatives')
     parser.add_argument('--nway', type=int, default=32, help='Number of ways for training')  # 32
     parser.add_argument('--accumsteps', type=int, default=1, help='Gradient accumulation steps')  # 1

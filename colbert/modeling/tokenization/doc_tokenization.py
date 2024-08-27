@@ -46,7 +46,7 @@ class DocTokenizer():
         obj = self.tok(
             batch_text, padding='longest', truncation='longest_first',
             return_tensors='pt', max_length=self.doc_maxlen,
-            pad_to_multiple_of=self.gist_freq
+            pad_to_multiple_of=self.gist_freq if self.gist_freq != 0 else None
         ).to(DEVICE)
 
         ids, mask = obj['input_ids'], obj['attention_mask']

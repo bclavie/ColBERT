@@ -114,20 +114,27 @@ class ColBERT(BaseColBERT):
         weights = self.attn_weight(D)
 
         # Pooling by averaging over consecutive gist_freq tokens.
-        D = D.view(D.size(0), -1, self.colbert_config.gist_freq, D.size(-1))
 
-        out_mask = out_mask.view(out_mask.size(0), -1, self.colbert_config.gist_freq)
-        num_gists = out_mask.sum(-1)
+        if self.colbert_config.gist_freq != 0:
+            if self.colbert_config.hierarchical_gist:
+                # TODO: HELLO GRIFFIN
+                # TODO: I CREATE THIS NEAT NOOK FOR THE SUPERPOWERED BASELINE
+                pass
+            else:
+                D = D.view(D.size(0), -1, self.colbert_config.gist_freq, D.size(-1))
 
-        weights = weights.view(weights.size(0), -1, self.colbert_config.gist_freq)
-        weights.masked_fill_(~out_mask.bool(), -1e4)
-        weights = torch.nn.functional.softmax(weights, dim=-1)
+                out_mask = out_mask.view(out_mask.size(0), -1, self.colbert_config.gist_freq)
+                num_gists = out_mask.sum(-1)
 
-        # Weighted average of D over last dimension using weights
-        D = D * weights.unsqueeze(-1)
-        D = D.sum(-2)
+                weights = weights.view(weights.size(0), -1, self.colbert_config.gist_freq)
+                weights.masked_fill_(~out_mask.bool(), -1e4)
+                weights = torch.nn.functional.softmax(weights, dim=-1)
 
-        # D = D.sum(-2) / num_gists.unsqueeze(-1).clamp_min(1)
+                # Weighted average of D over last dimension using weights
+                D = D * weights.unsqueeze(-1)
+                D = D.sum(-2)
+
+                # D = D.sum(-2) / num_gists.unsqueeze(-1).clamp_min(1)
 
         D = torch.cat([special, D], dim=1)
         out_mask = torch.cat([special_mask, (num_gists > 0).float().unsqueeze(-1)], dim=1)
