@@ -28,7 +28,7 @@ def train(args):
             kldiv_weight=args.kldiv_weight, marginmse_weight=args.marginmse_weight,
             normalise_training_scores=args.normalise_training_scores, normalization_method=args.normalization_method,
             maxsteps=max_num_steps, schedule_free_wd=args.schedule_free_wd, cap_padding=args.cap_padding,
-            gist_freq=args.gist_freq, hierarchical_gist_in_training=args.hierarchical_gist_in_training, pool_factor=args.gist_freq if args.hierarchical_gist_in_training else 0,
+            gist_freq=args.gist_freq, hierarchical_gist_in_training=args.hierarchical_gist_in_training
         )
 
         print(config)
