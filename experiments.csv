@@ -1,3 +1,4 @@
 name,path
 "pool_4","/home/azureuser/GistColBERT/experiments/pool_4/none/2024-08/27/19.14.20/checkpoints/colbert"
 "baseline","/home/azureuser/GistColBERT/experiments/baseline/none/2024-08/27/20.06.41/checkpoints/colbert"
+"k-means_pool4","/home/azureuser/GistColBERT/experiments/baseline/none/2024-08/28/09.36.22/checkpoints/colbert"

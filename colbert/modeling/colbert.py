@@ -10,7 +10,7 @@ import string
 import os
 import pathlib
 from torch.utils.cpp_extension import load
-
+from fast_pytorch_kmeans import KMeans
 
 class ColBERT(BaseColBERT):
     """
@@ -101,23 +101,62 @@ class ColBERT(BaseColBERT):
         bert_mask = attention_mask
 
         D = self.bert(input_ids, attention_mask=bert_mask)[0]
-        # D = self.linear(D)
 
         D = D * out_mask
 
         # Separate out Special Tokens
-
-        # Pooling by averaging over consecutive gist_freq tokens.
-
         if self.colbert_config.gist_freq != 0:
             special = D[:, :2]
             special_mask = out_mask[:, :2]
             D = D[:, 2:]
             out_mask = out_mask[:, 2:]
             if self.colbert_config.hierarchical_gist_in_training:
-                # TODO: HELLO GRIFFIN
-                # TODO: I CREATE THIS NEAT NOOK FOR THE SUPERPOWERED BASELINE
-                pass
+                # Store original shapes and lengths
+                original_shape = D.shape
+                original_lengths = out_mask.sum(dim=1).squeeze(-1)
+
+                # Initialize lists for pooled embeddings and lengths
+                D_pooled = []
+                pooled_lengths = []
+
+                # Process each document in the batch separately
+                for doc_idx in range(D.shape[0]):
+                    doc_embeddings = D[doc_idx]
+                    doc_mask = out_mask[doc_idx].squeeze(-1)
+                    
+                    # Filter out padding tokens
+                    valid_embeddings = doc_embeddings[doc_mask.bool()]
+
+                    # Calculate number of clusters for this document
+                    n_clusters = max(len(valid_embeddings) // self.colbert_config.gist_freq, 1)
+                    
+                    # Perform KMeans clustering on this document
+                    kmeans = KMeans(n_clusters=n_clusters, mode='euclidean', verbose=0)
+                    labels = kmeans.fit_predict(valid_embeddings)
+                    
+                    # Create pooled embeddings for this document
+                    pooled = []
+                    for i in range(n_clusters):
+                        cluster_embeddings = valid_embeddings[labels == i]
+                        if len(cluster_embeddings) > 0:
+                            pooled.append(cluster_embeddings.mean(dim=0))
+                        else:
+                            pooled.append(torch.zeros_like(valid_embeddings[0]))
+                    
+                    pooled = torch.stack(pooled)
+                    D_pooled.append(pooled)
+                    pooled_lengths.append(n_clusters)
+
+                # Pad D_pooled to match the maximum number of clusters
+                max_length = max(pooled_lengths)
+                D_padded = torch.zeros(original_shape[0], max_length, D.size(-1), device=D.device)
+                
+                for i, pooled in enumerate(D_pooled):
+                    D_padded[i, :pooled.size(0)] = pooled
+
+                # Update D and out_mask
+                D = D_padded
+                out_mask = (D.sum(dim=-1) != 0).float().unsqueeze(-1)
             else:
                 weights = self.attn_weight(D)
                 D = D.view(D.size(0), -1, self.colbert_config.gist_freq, D.size(-1))
@@ -133,7 +172,6 @@ class ColBERT(BaseColBERT):
                 D = D * weights.unsqueeze(-1)
                 D = D.sum(-2)
 
-                # D = D.sum(-2) / num_gists.unsqueeze(-1).clamp_min(1)
                 D = torch.cat([special, D], dim=1)
                 out_mask = torch.cat([special_mask, (num_gists > 0).float().unsqueeze(-1)], dim=1)
 
@@ -150,7 +188,6 @@ class ColBERT(BaseColBERT):
 
         elif keep_dims == 'return_mask':
             return D, out_mask.bool()
-
         return D
 
     def score(self, Q, D_padded, D_mask):
